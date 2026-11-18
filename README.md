@@ -131,14 +131,14 @@ cd dso202-gitops
 # 2. Create the cluster (host port 30080 is mapped)
 kind create cluster --name dso202-gitops --config cluster/kind-cluster.yaml
 ```
-![alt text](<../evidences/Screenshot from 2026-11-18 17-37-25.png>)
+![alt text](<evidences/Screenshot from 2026-11-18 17-37-25.png>)
 
 ```
 # 3. Restore the sealing key BEFORE the controller exists (skip on a first-ever build)
 kubectl create namespace sealed-secrets
 kubectl apply -f ../dso202-keys/sealing-key.backup.yaml
 ```
-![alt text](<../evidences/Screenshot from 2026-11-18 18-38-03.png>)
+![alt text](<evidences/Screenshot from 2026-11-18 18-38-03.png>)
 
 ```
 # 4. Bootstrap, part 1: Argo CD from the pinned Kustomize files (server-side apply is required)
@@ -146,7 +146,7 @@ kubectl apply -k bootstrap/argocd --server-side --force-conflicts
 kubectl wait --for=condition=Available deployment --all -n argocd --timeout=300s
 kubectl rollout status statefulset/argocd-application-controller -n argocd --timeout=300s
 ```
-![alt text](<../evidences/Screenshot from 2026-11-18 19-29-07.png>)
+![alt text](<evidences/Screenshot from 2026-11-18 19-29-07.png>)
 
 ```
 # 5. Bootstrap, part 2: the platform project and the root Application. Nothing else is applied by hand.
