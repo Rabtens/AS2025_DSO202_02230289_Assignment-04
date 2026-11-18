@@ -26,7 +26,7 @@ spec:
   project: platform
 
   source:
-    repoURL: https://github.com/Rabtens/dso202-gitops.git
+    repoURL: https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git
     targetRevision: main
     # A plain directory of manifests: no chart, no templating.
     path: platform/dev

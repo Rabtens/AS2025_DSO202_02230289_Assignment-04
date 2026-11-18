@@ -73,7 +73,7 @@ dso202-gitops/
     └── screenshots/             the four required screenshots (and the optional ones)
 ```
 
-Design rules followed: one concern per directory; environments differ only in values and in the Application's `targetRevision` (no `if env == "dev"` anywhere in a template); everything is pinned (no `latest`, `stable`, `master` or `HEAD` as a version); Argo CD objects are declared in Git; credentials appear only as SealedSecrets; every file starts with a comment header; the repository URL is spelled identically everywhere (`https://github.com/Rabtens/dso202-gitops.git`).
+Design rules followed: one concern per directory; environments differ only in values and in the Application's `targetRevision` (no `if env == "dev"` anywhere in a template); everything is pinned (no `latest`, `stable`, `master` or `HEAD` as a version); Argo CD objects are declared in Git; credentials appear only as SealedSecrets; every file starts with a comment header; the repository URL is spelled identically everywhere (`https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git`).
 
 ## 4. Pinned versions
 

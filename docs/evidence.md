@@ -689,14 +689,14 @@ The changed Application file is `argocd/applications/tasktracker-dev.yaml`; `sou
 
 ```yaml
   sources:
-    - repoURL: https://github.com/Rabtens/dso202-gitops.git
+    - repoURL: https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git
       targetRevision: main
       path: charts/tasktracker
       helm:
         releaseName: tasktracker
         valueFiles:
           - $values/environments/dev/values.yaml
-    - repoURL: https://github.com/Rabtens/dso202-gitops.git
+    - repoURL: https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git
       targetRevision: main
       ref: values
 ```

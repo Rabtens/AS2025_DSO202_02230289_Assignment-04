@@ -21,7 +21,7 @@ spec:
   project: dso202
 
   source:
-    repoURL: https://github.com/Rabtens/dso202-gitops.git
+    repoURL: https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git
     # Staging tracks an immutable reference: a tag created on main (Task 5).
     # A tag always resolves to the same commit, so this Application cannot
     # change meaning until a commit edits this line. Promotion to staging is

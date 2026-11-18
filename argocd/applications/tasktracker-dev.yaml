@@ -23,7 +23,7 @@ spec:
   project: dso202
 
   source:
-    repoURL: https://github.com/Rabtens/dso202-gitops.git
+    repoURL: https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git
     # Dev tracks a moving reference: every merge to main is deployed.
     targetRevision: main
     path: charts/tasktracker
