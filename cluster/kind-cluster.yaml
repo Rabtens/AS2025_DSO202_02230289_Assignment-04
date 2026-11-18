@@ -1,0 +1,23 @@
+# =============================================================================
+# File        : cluster/kind-cluster.yaml
+# Assignment  : DSO202 Assignment 4 (based on the Practical 1 / Assignments 1-3 cluster)
+# Descriptor  : Unit I 1.3 - local cluster
+# Purpose     : Single-node kind cluster, like the "dso202" cluster of Assignments
+#               1-3 (one node keeps memory use low), with ONE addition: host port
+#               30080 is mapped, so the dev frontend (NodePort 30080) is reachable
+#               at http://localhost:30080. Port 30081 (staging) is deliberately NOT
+#               mapped: staging is reached with kubectl port-forward.
+#               The cluster used in Assignments 1-3 did NOT map any NodePort, so a
+#               NEW cluster with this file is required; it cannot be added to a
+#               running cluster.
+# Create with : kind create cluster --name dso202-gitops --config cluster/kind-cluster.yaml
+# =============================================================================
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        listenAddress: 127.0.0.1
+        protocol: TCP

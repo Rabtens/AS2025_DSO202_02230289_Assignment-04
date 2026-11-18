@@ -1,0 +1,32 @@
+{{- /*
+  File        : charts/tasktracker/templates/ingress.yaml (DSO202 Assignment 4)
+  Purpose     : Kept from Assignment 3 but DISABLED by default (C9): no ingress
+                controller is installed in this assignment. Enabling it would
+                also require adding the Ingress kind to the dso202 project
+                whitelist. Written as a template comment so that a disabled
+                chart renders nothing at all for this file.
+*/ -}}
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: task-tracker-frontend
+  labels:
+    {{- include "task-tracker.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts: [{{ .Values.host | quote }}]
+      secretName: {{ .Values.ingress.tlsSecretName }}
+  rules:
+    - host: {{ .Values.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-svc
+                port:
+                  name: http
+{{- end }}

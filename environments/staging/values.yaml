@@ -1,0 +1,27 @@
+# =============================================================================
+# File        : environments/staging/values.yaml
+# Assignment  : DSO202 Assignment 4
+# Descriptor  : Unit IV 4.3.1 - per-environment values; Unit III 3.2 - Helm values
+# Purpose     : Everything that differs in staging from the chart defaults
+#               (charts/tasktracker/values.yaml): image tags, replica counts, the
+#               NodePort, and the name of the credentials Secret.
+#               One replica per tier to conserve memory.
+# =============================================================================
+environment: staging
+existingSecret: tasktracker-credentials
+
+database:
+  image:
+    tag: "1.0"
+
+backend:
+  replicaCount: 1
+  image:
+    tag: "1.0"
+
+frontend:
+  replicaCount: 1
+  image:
+    tag: "1.0"
+  service:
+    nodePort: 30081

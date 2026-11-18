@@ -1,0 +1,21 @@
+# =============================================================================
+# File        : charts/tasktracker/Chart.yaml
+# Assignment  : DSO202 Assignment 4 (chart from Assignment 3, adjusted in Task 1)
+# Descriptor  : Unit III 3.2 - Helm charts
+# Purpose     : Task Tracker (database, backend, frontend) as a GitOps-ready chart.
+#               The chart renders workloads only: namespaces, quotas, RBAC and
+#               credentials belong to the platform layer (platform/<env>/).
+# =============================================================================
+apiVersion: v2
+name: task-tracker
+description: Task Tracker workloads (PostgreSQL StatefulSet, backend, frontend with nginx /backend proxy) for GitOps delivery with Argo CD
+type: application
+version: 1.0.0
+appVersion: "1.0"
+keywords:
+  - dso202
+  - task-tracker
+  - gitops
+maintainers:
+  - name: Kuenzang
+    email: 02230289.cst@rub.edu.bt

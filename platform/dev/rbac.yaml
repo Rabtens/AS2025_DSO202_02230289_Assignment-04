@@ -1,0 +1,115 @@
+# =============================================================================
+# File        : platform/dev/rbac.yaml
+# Assignment  : DSO202 Assignment 4 (Role and RoleBinding from Assignment 2)
+# Descriptor  : Unit I 2.3 - namespace RBAC
+# Note        : the Istio and TaskBackup rules of Assignment 2 are omitted: those APIs
+#               are not installed in this assignment.
+# Purpose     : Least-privilege access to the dso202-dev namespace. Kubernetes RBAC
+#               (this file) controls what users and ServiceAccounts may do
+#               to cluster objects; Argo CD RBAC (Task 6) is separate. The two
+#               ServiceAccounts below are used only by these bindings; the three
+#               Pod ServiceAccounts (backend-sa, frontend-sa, db-sa) belong to
+#               the chart.
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-deployer
+  namespace: dso202-dev
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: taskbackup-runner
+  namespace: dso202-dev
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: task-tracker-ci-deployer
+  namespace: dso202-dev
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["backend", "frontend"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    resourceNames: ["db"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets"]
+    verbs: ["list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["task-tracker-config"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: task-tracker-ci-deployer
+  namespace: dso202-dev
+subjects:
+  - kind: ServiceAccount
+    name: ci-deployer
+    namespace: dso202-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: task-tracker-ci-deployer
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: task-tracker-developer
+  namespace: dso202-dev
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "persistentvolumeclaims", "events", "serviceaccounts"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/portforward"]
+    verbs: ["create", "get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets", "controllerrevisions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale", "statefulsets/scale"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: task-tracker-developers
+  namespace: dso202-dev
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: dso202-developers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: task-tracker-developer
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: task-tracker-auditors
+  namespace: dso202-dev
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: auditor@cst.edu.bt
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view

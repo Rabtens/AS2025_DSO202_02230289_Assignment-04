@@ -1,0 +1,52 @@
+# =============================================================================
+# File        : platform/dev/quota-and-limits.yaml
+# Assignment  : DSO202 Assignment 4 (ResourceQuota and LimitRange from Assignment 1)
+# Descriptor  : Unit I 1.5.3 - quotas and limit ranges
+# Purpose     : Caps what the dso202-dev namespace may consume and gives every
+#               container default requests/limits. The quota REQUIRES requests and
+#               limits on every container, so the chart and the smoke-test Job both
+#               declare them (chart contract C7).
+# Sizing      : Steady state is 3 Pods (db, backend, frontend) plus the PostSync
+#               smoke-test Pod. A rolling update briefly adds one more Pod
+#               (maxSurge 1), and a failed release leaves an old and a new Pod
+#               side by side, so 8 Pods keeps the quota from blocking a rollout.
+#               Same approach as Assignment 1 (pods x per-container defaults).
+# Changes from Assignment 1: the LimitRange minimum is lowered to 10m/16Mi because
+#               the frontend (20m/16Mi) and the smoke test (10m/16Mi) are
+#               deliberately small; Assignment 1's minimum (50m/64Mi) would reject them.
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dso202-dev-quota
+  namespace: dso202-dev
+spec:
+  hard:
+    pods: "8"
+    requests.cpu: "1500m"
+    requests.memory: 1536Mi
+    limits.cpu: "3"
+    limits.memory: 3072Mi
+    persistentvolumeclaims: "2"
+    services: "4"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: dso202-dev-limits
+  namespace: dso202-dev
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      default:
+        cpu: 200m
+        memory: 128Mi
+      min:
+        cpu: 10m
+        memory: 16Mi
+      max:
+        cpu: "1"
+        memory: 1Gi

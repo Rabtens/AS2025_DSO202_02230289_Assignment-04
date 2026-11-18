@@ -1,10 +1,8 @@
-# dso202-gitops — GitOps delivery of the Task Tracker with Argo CD
-
-**Student:** Kuenzang (02230289) · **Module:** DSO202 · **Assignment 4** · **Repository:** https://github.com/Rabtens/dso202-gitops · **Builds on:** [Assignment 1](https://github.com/Rabtens/AS2025_DSO202_02230289_assignment-01) (three-tier app, quota), [Assignment 2](https://github.com/Rabtens/AS2025_DSO202_02230289_assignment-2) (StatefulSet, probes, RBAC), [Assignment 3](https://github.com/Rabtens/AS2025_DSO202_02230289_assignment-3) (Helm chart)
+# dso202-gitops - GitOps delivery of the Task Tracker with Argo CD
 
 ## 1. Purpose
 
-Assignments 1–3 produced a three-tier Task Tracker (database, backend, frontend), extended it with quotas, RBAC and Istio policy, and packaged it with Kustomize and Helm. In each one a person ran a command to get the application into the cluster. This repository removes that step: **Argo CD runs inside the cluster, reads the desired state from this repository, and makes the cluster match it.** After the two bootstrap commands, every change to the cluster is a commit.
+Assignments 1-3 produced a three-tier Task Tracker (database, backend, frontend), extended it with quotas, RBAC and Istio policy, and packaged it with Kustomize and Helm. In each one a person ran a command to get the application into the cluster. This repository removes that step: **Argo CD runs inside the cluster, reads the desired state from this repository, and makes the cluster match it.** After the two bootstrap commands, every change to the cluster is a commit.
 
 What this repository does:
 
@@ -13,10 +11,6 @@ What this repository does:
 3. Keeps database credentials in Git as **SealedSecrets**, never as plaintext.
 4. Ships a release, survives a faulty release, and recovers with `git revert`.
 5. Rebuilds the entire environment on a new cluster from this repository and one backed-up key.
-
-No application code is written here; the Task Tracker images come from the module tutor.
-
-> **How to use this file.** This README is the only guide you need: sections 1–9 describe the finished system (and are what the marker reads), and **section 10 is the step-by-step walkthrough** with every command in the order to run it, the commit to make after each step, and a screenshot slot per task. Command output goes into `docs/evidence.md` (a fill-in file the brief requires); the screenshots go into `docs/screenshots/`.
 
 ### GitOps principles and where each is evidenced
 
@@ -40,10 +34,10 @@ Laptop (Docker)
 
 | Applied by hand, once per cluster | Delivered from Git by the `root` Application | Wave |
 |---|---|---|
-| `bootstrap/argocd` — Argo CD itself | `argocd/projects/dso202.yaml` — AppProject | -3 |
-| `bootstrap/root` — `platform` AppProject and `root` Application | `argocd/applications/sealed-secrets.yaml` — controller | -2 |
-| | `platform-dev`, `platform-staging` — namespace, quota, RBAC, credentials | -1 |
-| | `tasktracker-dev`, `tasktracker-staging` — workloads | 0 |
+| `bootstrap/argocd` - Argo CD itself | `argocd/projects/dso202.yaml` - AppProject | -3 |
+| `bootstrap/root` - `platform` AppProject and `root` Application | `argocd/applications/sealed-secrets.yaml` - controller | -2 |
+| | `platform-dev`, `platform-staging` - namespace, quota, RBAC, credentials | -1 |
+| | `tasktracker-dev`, `tasktracker-staging` - workloads | 0 |
 
 Order matters: the `SealedSecret` kind does not exist until the controller is installed, and the namespace and credentials must exist before the workloads that read them. Inside a workload sync the chart orders itself: database (wave 0), backend (1), frontend (2), then a PostSync smoke test.
 
@@ -92,8 +86,6 @@ Design rules followed: one concern per directory; environments differ only in va
 | Smoke-test image | `busybox:1.37` |
 | kind, kubectl, Helm | as used in Practical 1 and Assignment 3 |
 
-> **Docker memory.** Assignment 2 recorded that the kind node ran with only about 1.7 GiB and the control plane restarted under load. This assignment runs seven Argo CD Pods, the Sealed Secrets controller and two copies of the Task Tracker. Raise Docker Desktop to **at least 6 GB** (Settings → Resources) before Task 1, and run `docker login` to avoid Docker Hub pull limits.
-
 ## 5. Chart contract (how the Assignment 3 chart was adjusted)
 
 | # | Requirement | Where it is satisfied |
@@ -110,7 +102,7 @@ Design rules followed: one concern per directory; environments differ only in va
 | C10 | Frontend Service NodePort, number is a value | `frontend.service.nodePort` (30080 dev, 30081 staging) |
 | C11 | `helm lint` clean, `helm template` works for both | verified in `docs/evidence.md`, Task 1 |
 
-### 5.1 What was carried over from Assignments 1–3
+### 5.1 What was carried over from Assignments 1-3
 
 | Source | What | Where it is now |
 |---|---|---|
@@ -125,29 +117,38 @@ Design rules followed: one concern per directory; environments differ only in va
 
 Left out on purpose: the Ingress and TLS Secret, the Istio policies and the TaskBackup operator of Assignment 2 (none is installed here); in the chart `templates/secret.yaml`, `templates/rbac.yaml`, `templates/istio.yaml` and the `helm test` Pod (a bare `Pod` is not in the project whitelist; the PostSync smoke-test Job replaces it). `ingress.yaml` stays, disabled.
 
-> **Do not reuse the old password.** Assignments 1 and 2 contain the database password in plain base64/`stringData` in public GitHub repositories, so it must be treated as disclosed. Choose **new, different passwords for dev and staging** in Task 4.
-
 ## 6. Build the whole environment from an empty machine
 
 This is the sequence practised in Task 9. Prerequisites: Docker (≥ 6 GB memory, `docker login` done), `kind`, `kubectl`, `helm`, `git`, `argocd` v3.5.6, `kubeseal` v0.40.0.
 
 ```bash
 # 1. Get the repository
-git clone https://github.com/Rabtens/dso202-gitops.git
+git clone https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04
 cd dso202-gitops
+```
 
+```
 # 2. Create the cluster (host port 30080 is mapped)
 kind create cluster --name dso202-gitops --config cluster/kind-cluster.yaml
+```
+![alt text](<../evidences/Screenshot from 2026-11-18 17-37-25.png>)
 
+```
 # 3. Restore the sealing key BEFORE the controller exists (skip on a first-ever build)
 kubectl create namespace sealed-secrets
 kubectl apply -f ../dso202-keys/sealing-key.backup.yaml
+```
+![alt text](<../evidences/Screenshot from 2026-11-18 18-38-03.png>)
 
+```
 # 4. Bootstrap, part 1: Argo CD from the pinned Kustomize files (server-side apply is required)
 kubectl apply -k bootstrap/argocd --server-side --force-conflicts
 kubectl wait --for=condition=Available deployment --all -n argocd --timeout=300s
 kubectl rollout status statefulset/argocd-application-controller -n argocd --timeout=300s
+```
+![alt text](<../evidences/Screenshot from 2026-11-18 19-29-07.png>)
 
+```
 # 5. Bootstrap, part 2: the platform project and the root Application. Nothing else is applied by hand.
 kubectl apply -f bootstrap/root
 kubectl get applications -n argocd -w          # Applications appear in wave order

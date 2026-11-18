@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tasktracker values",
+  "type": "object",
+  "required": ["environment", "existingSecret", "database", "backend", "frontend"],
+  "properties": {
+    "environment": { "enum": ["", "dev", "staging"] },
+    "existingSecret": { "type": "string" },
+    "host": { "type": "string", "minLength": 3 },
+    "config": { "type": "object" },
+    "database": {
+      "type": "object",
+      "required": ["image"],
+      "properties": {
+        "image": { "$ref": "#/$defs/image" },
+        "partition": { "type": "integer", "minimum": 0 },
+        "storage": { "type": "string", "pattern": "^[0-9]+(Mi|Gi)$" }
+      }
+    },
+    "backend": {
+      "type": "object",
+      "required": ["replicaCount", "image"],
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "image": { "$ref": "#/$defs/image" },
+        "env": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } }
+      }
+    },
+    "frontend": {
+      "type": "object",
+      "required": ["replicaCount", "image", "service"],
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "image": { "$ref": "#/$defs/image" },
+        "env": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } },
+        "service": {
+          "type": "object",
+          "required": ["nodePort"],
+          "properties": { "nodePort": { "type": "integer", "minimum": 30000, "maximum": 32767 } }
+        }
+      }
+    },
+    "ingress": { "type": "object", "properties": { "enabled": { "type": "boolean" } } }
+  },
+  "$defs": {
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" }
+      }
+    }
+  }
+}
