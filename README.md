@@ -152,22 +152,26 @@ kubectl rollout status statefulset/argocd-application-controller -n argocd --tim
 # 5. Bootstrap, part 2: the platform project and the root Application. Nothing else is applied by hand.
 kubectl apply -f bootstrap/root
 kubectl get applications -n argocd -w          # Applications appear in wave order
+```
+![alt text](<evidences/Screenshot from 2026-11-18 21-08-57.png>)
 
+```
 # 6. Sign in (separate terminal for the port-forward) and synchronise staging, which is manual by design
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 argocd admin initial-password -n argocd
 argocd login localhost:8080 --username admin --insecure
 argocd app sync tasktracker-staging
+```
+![alt text](<evidences/Screenshot from 2026-11-18 21-10-44.png>)
 
+```
 # 7. Verify
 kubectl get applications -n argocd             # all Synced and Healthy
 kubectl get pods -n dso202-dev
 kubectl get pods -n dso202-staging
 curl -s http://localhost:30080 | head          # dev frontend
-kubectl port-forward -n dso202-staging svc/frontend-svc 8081:8080   # staging frontend at http://localhost:8081
 ```
-
-First-ever build only: after step 5 the controller starts and creates a new sealing key; back it up (`kubectl get secret -n sealed-secrets -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml > ../dso202-keys/sealing-key.backup.yaml; chmod 600 …`), then seal the credentials of each environment (section 8) and commit them.
+![alt text](<evidences/Screenshot from 2026-11-18 21-43-57.png>)
 
 ## 7. Cleanup
 
@@ -177,8 +181,7 @@ kind delete cluster --name dso202-gitops
 # PersistentVolumeClaims created by the StatefulSet are not tracked by Argo CD; they disappear with the cluster.
 rm -f ../dso202-keys/sealing-key.backup.yaml   # only when the environment is finished with for good
 ```
-
-Deleting the root Application deletes every Application and, through their finalizers, every workload. This is intentional and must never be done casually.
+![alt text](<evidences/Screenshot from 2026-11-18 21-47-37.png>)
 
 ## 8. How credentials are handled
 
@@ -191,37 +194,37 @@ Deleting the root Application deletes every Application and, through their final
 
 ## 9. Written answers
 
-### Q1 — Why is the `platform` project applied by hand while `dso202` is created by the root Application, and what risk arises if `dso202` may deploy into the `argocd` namespace?
+### Q1 - Why is the `platform` project applied by hand while `dso202` is created by the root Application, and what risk arises if `dso202` may deploy into the `argocd` namespace?
 
 Argo CD can only create an Application inside a project that already exists, and the root Application itself must belong to a project, so something has to exist before Argo CD can read anything from Git. That is the bootstrap problem: `platform` and `root` are the two objects that cannot come from Git because Git is read *through* them, so they are applied by hand (and they live in `bootstrap/`, in Git, so the hand step is still reviewable). `dso202` has no such dependency. Creating it from `argocd/projects/` (sync wave -3, before any Application that refers to it) means the workload boundary is itself versioned, reviewed in a pull request and restored by self-heal if someone edits it.
 
 If `dso202` were allowed to deploy into `argocd`, any Application in it could write `Application` and `AppProject` objects into the Argo CD namespace. An Application in `argocd` can name any project, including `platform`, whose destinations and cluster-scoped whitelist are unrestricted. A single mistaken or malicious commit to the chart would therefore be able to create an Application in `platform` that deploys a Namespace, ClusterRole or CRD, or loosen `dso202`'s own whitelist. That is administrator capability, which is why only `platform` may target `argocd`.
 
-### Q2 — What does strict scope prevent, what is lost if the sealing key is lost, and what must be done?
+### Q2 - What does strict scope prevent, what is lost if the sealing key is lost, and what must be done?
 
 Strict scope binds the encrypted payload to the Secret's **name and namespace**. A SealedSecret for `dso202-dev/tasktracker-credentials` cannot be decrypted if it is renamed or applied in `dso202-staging`. This prevents someone who can create objects in one namespace from copying a SealedSecret out of another (it is in a public repository) and having the controller decrypt it for them, and it prevents the dev password from being used to populate staging.
 
 If the sealing key is lost, **every SealedSecret in Git becomes permanently unreadable**: a new or rebuilt cluster gets a fresh key and answers `no key could decrypt secret`. Secrets already unsealed in a running cluster keep working until that cluster is lost, but nothing can be restored from Git. What must be done: restore the key from the backup if one exists (this is why the backup, taken before every rebuild and after every 30-day renewal, matters); otherwise let the new controller generate a key, **re-seal every Secret from the original plaintext values** (kept in the password manager) with `kubeseal` against the new certificate, commit the new files, and rotate the credentials if the originals cannot be recovered. The old ciphertext in Git history is harmless but useless.
 
-### Q3 — Synced versus Healthy, with an example
+### Q3 - Synced versus Healthy, with an example
 
 **Synced** answers "does the live state equal the desired state in Git?" — a comparison of objects. **Healthy** answers "are the live objects working?" — an assessment of readiness (for a Deployment, that the rollout completed and replicas are available). They are independent: an Application can be Synced and Degraded (the cluster is exactly what Git says, and what Git says is broken), or OutOfSync and Healthy (a working system that no longer matches Git, such as staging after a new tag is committed but before it is synced).
 
 Example from this assignment: in Task 7, part B, the merged backend `1.1` commit makes `tasktracker-dev` **Synced** (the live Deployment matches `main` exactly) but **Degraded** (the new backend Pod never becomes ready and the Deployment exceeds `progressDeadlineSeconds: 120`). The output is recorded in `docs/evidence.md`, Task 5 (Q3) and Task 7, step 5. It can be provoked at any time by committing an image tag that does not start, and it is undone by `git revert`, not by editing the cluster.
 
-### Q4 — Argo CD RBAC versus Kubernetes RBAC, and what would change with SSO?
+### Q4 - Argo CD RBAC versus Kubernetes RBAC, and what would change with SSO?
 
 **Argo CD RBAC** controls what an *Argo CD user* may do inside Argo CD: view, sync, override or delete Applications, read projects, repositories and clusters, and (since 3.0) read logs. It is configured in the `argocd-rbac-cm` ConfigMap (`policy.csv`, `policy.default`) with accounts declared in `argocd-cm`; in this repository both are patched by `bootstrap/argocd`. **Kubernetes RBAC** controls what a *Kubernetes subject* (a user, group or ServiceAccount) may do to objects through the API server. It is configured with `Role`, `RoleBinding`, `ClusterRole` and `ClusterRoleBinding` objects, here in `platform/<env>/rbac.yaml`. They are separate layers: a reviewer who has no Argo CD permission to sync cannot deploy even though the Argo CD application controller itself holds broad Kubernetes permissions, and a developer with Kubernetes rights can still change objects directly with `kubectl` unless Kubernetes RBAC forbids it, which is why Argo CD RBAC governs *what reaches* the cluster and Kubernetes RBAC governs *direct access*.
 
 With SSO the subjects change. Identity comes from the organisation's identity provider (OIDC through `oidc.config` or Dex in `argocd-cm`), so the `reviewer` local account would be replaced by IdP **groups**: `policy.csv` would hold group rules such as `g, <idp-group-name>, role:dso202-viewer` plus `p, role:dso202-viewer, applications, get, dso202/*, allow`, `argocd-rbac-cm` would set `scopes: '[groups]'` so the group claim is read, and the local `accounts.reviewer` and the built-in `admin` account would normally be disabled. Nothing in the policy language changes; only who the subject is.
 
-### Q5 — Why is `argocd app rollback` refused, what is the GitOps equivalent, and why `git revert`?
+### Q5 - Why is `argocd app rollback` refused, what is the GitOps equivalent, and why `git revert`?
 
 `argocd app rollback` redeploys an earlier *recorded sync* to the cluster without changing Git. With automated sync enabled this is contradictory: the very next comparison would find the cluster different from `main` and sync it straight back, so Argo CD refuses and states that rollback cannot be performed against an Application with automated sync enabled. Git is the source of truth, so recovery has to be made in Git.
 
 The GitOps equivalent is a new commit that restores the previous desired state: `git revert <bad-commit>` on a branch, a pull request, a merge, and Argo CD pulls the result. Revert is preferred to deleting the bad commit from history because (1) history stays complete and immutable (principle 2): the faulty release and its recovery both remain as an audit trail; (2) deleting would require rewriting and force-pushing `main`, which breaks every clone and any tag or revision already referenced (staging's tags, Argo CD's cached commits); (3) the revert is an ordinary, reviewable change that goes through the same pull-request gate as any release; and (4) the evidence of what failed, and why, is not erased.
 
-### Q6 — (a) Single repository versus separated configuration; (b) what is not under GitOps control
+### Q6 - (a) Single repository versus separated configuration; (b) what is not under GitOps control
 
 **(a) Advantages of one repository here:** (1) A release is one reviewed commit that changes the chart and the values together, and a tag such as `v1.1.0` pins both consistently, so staging cannot get a chart that does not match its values. (2) One repository is simpler to run, clone, rebuild and prove (one URL in every `sourceRepos`, one history to inspect), which suits a single-person project.
 **Disadvantages:** (1) Configuration changes and chart changes share one commit stream and one set of permissions: anyone who can change a dev value can change the chart and the staging Application, and configuration cannot be given to a different team with different write access. (2) Every commit, including a values-only change for dev, makes Argo CD re-fetch and re-render every Application that reads the repository (unless `manifest-generate-paths` is set), and the history mixes application packaging, environment configuration and platform changes, which makes it noisier to review and to revert selectively.
@@ -239,7 +242,7 @@ The GitOps equivalent is a new commit that restores the previous desired state: 
 
 ## 10. Step-by-step walkthrough
 
-The marking checks the commit history ("one or two large commits is not accepted"), so the finished files are **not** copied into your repository all at once. The unzipped pack looks like this:
+The marking checks the commit history ("one or two large commits is not accepted"), so the finished files are **not** copied into your repository all at once.:
 
 ```
 DSO202_Assignment4_02230289/            <- $PACK
@@ -250,24 +253,20 @@ DSO202_Assignment4_02230289/            <- $PACK
     └── examples/                       illustration of a SealedSecret (Listing 12 shape)
 ```
 
-`dso202-gitops/` holds every finished file, but your own clone starts empty and receives them task by task. The files in `extras/` are helpers and drill inputs. You copy files into your own clone in the order of the tasks below and commit after each step.
-
 ```bash
 export PACK=~/DSO202_Assignment4_02230289   # the folder you unzipped (it contains dso202-gitops/ and extras/)
 export GH_USER=Rabtens
 ```
 
-The GitHub user name (`Rabtens`) and the image names (`sarojsanyasi/dso202-*`, taken from your Assignment 1–3 manifests) are already filled in; check the image names against what the module tutor issued. Nothing here has been run against a real cluster: commands and expected results come from the assignment brief, so trust your own output where it differs. Paste each command's output into the matching block of `docs/evidence.md` (copy it to your repository in Task 1 step 7), and save the screenshots named in the slots below.
-
-**Before Task 1:** raise Docker Desktop memory to at least 6 GB (section 4). Task 1 tells you when to delete the old `dso202` cluster; it never mapped port 30080, but it would compete for memory.
+**Before Task 1:** raise Docker Desktop memory to at least 6 GB (section 4). 
 
 ---
 
-### Task 1 — Repository, chart contract, cluster
+### Task 1 - Repository, chart contract, cluster
 
 ```bash
 # 1. empty public repo on GitHub named dso202-gitops, then:
-git clone https://github.com/$GH_USER/dso202-gitops.git
+git clone https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04
 cd dso202-gitops
 git branch -M main
 
@@ -275,16 +274,25 @@ git branch -M main
 cp $PACK/dso202-gitops/.gitignore .
 git add .gitignore && git commit -m "Add .gitignore: keep keys and plaintext Secrets out of Git"
 git push -u origin main
+```
+![alt text](<evidences/Screenshot from 2026-11-18 21-51-05.png>)
 
+```bash
 # 3. the chart (the smoke test is added in Task 5, so leave it out for now)
 mkdir -p charts && cp -r $PACK/dso202-gitops/charts/tasktracker charts/
 rm charts/tasktracker/templates/smoke-test-job.yaml      # the pack copy stays untouched; the file is added in Task 5
 git add charts && git commit -m "Add Task Tracker Helm chart (from Assignment 3) adjusted to the GitOps chart contract"
+```
+![alt text](<evidences/Screenshot from 2026-11-18 21-52-11.png>)
 
+```bash
 # 4. environment values
 cp -r $PACK/dso202-gitops/environments .
 git add environments && git commit -m "Add per-environment values for dev and staging"
+```
+![alt text](<evidences/Screenshot from 2026-11-18 21-53-25.png>)
 
+```bash
 # 5. platform manifests (namespace, quota and limits, RBAC); sealed credentials come in Task 4
 cp -r $PACK/dso202-gitops/platform .
 git add platform && git commit -m "Add platform manifests: namespaces, quota, limits and RBAC for dev and staging"
