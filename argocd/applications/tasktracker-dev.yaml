@@ -22,19 +22,17 @@ metadata:
 spec:
   project: dso202
 
-  source:
-    repoURL: https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git
-    # Dev tracks a moving reference: every merge to main is deployed.
-    targetRevision: main
-    path: charts/tasktracker
-    helm:
-      # Fixed release name, so that object names are identical in every
-      # environment; the namespace is what distinguishes them.
-      releaseName: tasktracker
-      # Paths are relative to the chart directory (charts/tasktracker), so two
-      # levels up reaches the repository root.
-      valueFiles:
-        - ../../environments/dev/values.yaml
+  sources:
+    - repoURL: https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git
+      targetRevision: main
+      path: charts/tasktracker
+      helm:
+        releaseName: tasktracker
+        valueFiles:
+          - $values/environments/dev/values.yaml
+    - repoURL: https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git
+      targetRevision: main
+      ref: values
 
   destination:
     server: https://kubernetes.default.svc
