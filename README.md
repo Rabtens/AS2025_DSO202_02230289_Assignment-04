@@ -307,14 +307,19 @@ mkdir -p docs/screenshots && cp $PACK/dso202-gitops/docs/evidence.md docs/ && to
 git add README.md docs && git commit -m "Add README and evidence template"
 git push
 ```
+![alt text](<evidences/Screenshot from 2026-11-18 21-55-03.png>)
 
-Tool check, lint, kinds and cluster (evidence items 1.1 – 1.6):
+Tool check, lint, kinds and cluster (evidence items 1.1 - 1.6):
 
 ```bash
 bash $PACK/extras/scripts/tool-check.sh
 helm lint charts/tasktracker -f environments/dev/values.yaml
 helm lint charts/tasktracker -f environments/staging/values.yaml
 helm template tasktracker charts/tasktracker -f environments/dev/values.yaml | grep '^kind:' | sort | uniq -c
+```
+![alt text](<evidences/Screenshot from 2026-11-18 21-56-49.png>)
+
+```bash
 kind get clusters
 kind delete cluster --name dso202          # only if it exists: frees memory; your old cluster did not map 30080 but would clash on resources
 kind create cluster --name dso202-gitops --config cluster/kind-cluster.yaml
@@ -323,13 +328,11 @@ kubectl get nodes
 docker ps --filter name=dso202-gitops --format '{{.Names}}   {{.Ports}}'
 ```
 
-The helper scripts are not part of the section 3 layout, so they stay in the pack and are run from the root of your clone: `bash $PACK/extras/scripts/<name>.sh`.
+The helper scripts are not part of the section 3 layout, so they stay in the pack and are run from the root of your clone: `bash $PACK/extras/scripts/<name>.sh`. And  for my case cluster "dso202-gitops" already exits.
 
-![kubectl get nodes and the 30080 port mapping](docs/screenshots/t1-nodes-and-port.png)
+![alt text](<evidences/Screenshot from 2026-11-18 22-15-37.png>)
 
-> 📸 **Screenshot:** save as `docs/screenshots/t1-nodes-and-port.png` — kubectl get nodes and the 30080 port mapping.
-
-### Task 2 — Argo CD
+### Task 2 - Argo CD
 
 ```bash
 mkdir -p bootstrap && cp -r $PACK/dso202-gitops/bootstrap/argocd bootstrap/   # bootstrap/root comes in Task 3
@@ -343,21 +346,24 @@ kubectl wait --for=condition=Available deployment --all -n argocd --timeout=300s
 kubectl rollout status statefulset/argocd-application-controller -n argocd --timeout=300s
 kubectl get pods -n argocd
 kubectl get crd | grep argoproj.io
+```
+![alt text](<evidences/Screenshot from 2026-11-18 22-18-40.png>)
+
+```bash
 # terminal 2 (keeps running):
 kubectl port-forward svc/argocd-server -n argocd 8080:443
-# terminal 1:
-argocd admin initial-password -n argocd
-argocd login localhost:8080 --username admin --insecure
-kubectl get configmap argocd-cm -n argocd -o yaml | grep -E 'timeout.reconciliation|accounts.reviewer'
-argocd version
 ```
-Screenshot: UI at https://localhost:8080 after signing in → `docs/screenshots/02-argocd-ui.png`.
+![alt text](<evidences/Screenshot from 2026-11-18 22-19-53.png>)
 
-![Argo CD UI after signing in (required)](docs/screenshots/02-argocd-ui.png)
+```bash
+# terminal 1:
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+```
+![alt text](<evidences/Screenshot from 2026-11-20 17-58-13.png>)
 
-> 📸 **Screenshot:** save as `docs/screenshots/02-argocd-ui.png` — Argo CD UI after signing in (required).
+![alt text](<evidences/Screenshot from 2026-11-20 18-36-22.png>)
 
-### Task 3 — Projects and the root Application
+### Task 3 - Projects and the root Application
 
 ```bash
 cp -r $PACK/dso202-gitops/bootstrap/root bootstrap/
@@ -365,19 +371,18 @@ mkdir -p argocd/projects && cp $PACK/dso202-gitops/argocd/projects/dso202.yaml a
 git add bootstrap/root argocd/projects
 git commit -m "Add platform project, root Application and the dso202 workload project"
 git push origin main                       # the root reads argocd/ from GitHub, so push BEFORE applying
+```
+![alt text](<evidences/Screenshot from 2026-11-20 19-43-09.png>)
 
+```bash
 kubectl apply -f bootstrap/root
 kubectl get appproject,application -n argocd
 argocd app get root
 argocd proj get dso202
 ```
-Note: until `argocd/applications/` exists the root has nothing to create besides the project; a warning about an empty directory is normal. Screenshot: root resource tree → `03-root-resource-tree.png`. Q1 is answered in section 9.
+![alt text](<evidences/Screenshot from 2026-11-20 19-57-37.png>)
 
-![root Application resource tree (required)](docs/screenshots/03-root-resource-tree.png)
-
-> 📸 **Screenshot:** save as `docs/screenshots/03-root-resource-tree.png` — root Application resource tree (required).
-
-### Task 4 — Platform layer and Sealed Secrets
+### Task 4 - Platform layer and Sealed Secrets
 
 ```bash
 # 1. controller through Git
@@ -387,11 +392,17 @@ argocd app get root --refresh
 kubectl get applications -n argocd
 kubectl get pods -n sealed-secrets
 kubectl get crd sealedsecrets.bitnami.com
+```
+![alt text](<evidences/Screenshot from 2026-11-20 20-07-06.png>)
 
+```bash
 # 2. back up the sealing key BEFORE sealing anything (outside the repository)
 bash $PACK/extras/scripts/backup-sealing-key.sh
 ls -l ../dso202-keys/
+```
+![alt text](<evidences/Screenshot from 2026-11-20 20-09-43.png>)
 
+```bash
 # 3. plaintext inputs: type the values in an editor, not on the command line.
 #    Different passwords for dev and staging. DB_* and POSTGRES_* must match within each file.
 mkdir -p secrets-plain
@@ -404,7 +415,10 @@ bash $PACK/extras/scripts/seal-credentials.sh dev
 bash $PACK/extras/scripts/seal-credentials.sh staging
 git add platform/dev/tasktracker-credentials.sealed.yaml platform/staging/tasktracker-credentials.sealed.yaml
 git commit -m "Add sealed credentials for dev and staging"
+```
+![alt text](<evidences/Screenshot from 2026-11-20 20-14-46.png>)
 
+```bash
 # 5. history scan BEFORE deleting the plaintext, then delete it
 bash $PACK/extras/scripts/history-scan.sh       # every count must be 0
 rm secrets-plain/*.env                          # keep the values in a password manager
@@ -419,13 +433,9 @@ kubectl get sealedsecret -n dso202-dev
 kubectl describe secret tasktracker-credentials -n dso202-dev
 kubectl get resourcequota,limitrange -n dso202-dev
 ```
-Choose NEW passwords (the Assignment 1/2 password is public). Do not use `secrets-plain/` or `*-plain.yaml` names anywhere else; they are in `.gitignore`. Q2 is answered in section 9 of this README.
+![alt text](<evidences/Screenshot from 2026-11-20 20-25-32.png>)
 
-![platform-dev and platform-staging Synced and Healthy](docs/screenshots/t4-applications-healthy.png)
-
-> 📸 **Screenshot:** save as `docs/screenshots/t4-applications-healthy.png` — platform-dev and platform-staging Synced and Healthy.
-
-### Task 5 — Workloads
+### Task 5 - Workloads
 
 ```bash
 # smoke test (held back in Task 1)
@@ -433,17 +443,26 @@ cp $PACK/dso202-gitops/charts/tasktracker/templates/smoke-test-job.yaml charts/t
 helm template tasktracker charts/tasktracker -f environments/dev/values.yaml | grep -B2 -A3 'kind: Job'
 git add charts && git commit -m "Add PostSync smoke-test Job (backend-svc, GET /api/tasks)"
 git push origin main
+```
+![alt text](<evidences/Screenshot from 2026-11-20 20-35-00.png>)
 
+```bash
 # baseline tag: it must contain the chart, the smoke test AND environments/staging/values.yaml
 git tag -a v1.0.0 -m "Baseline release: images 1.0"
 git push origin v1.0.0
 git ls-remote --tags origin
+```
+![alt text](<evidences/Screenshot from 2026-11-20 20-36-48.png>)
 
+```bash
 # the two Applications
 cp $PACK/dso202-gitops/argocd/applications/tasktracker-*.yaml argocd/applications/
 git add argocd/applications && git commit -m "Add tasktracker-dev (main, automated) and tasktracker-staging (tag v1.0.0, manual) Applications"
 git push
+```
+![alt text](<evidences/Screenshot from 2026-11-20 20-37-20.png>)
 
+```bash
 # two terminals
 kubectl get applications -n argocd -w
 kubectl get pods -n dso202-dev -w
@@ -451,7 +470,18 @@ kubectl get job -n dso202-dev
 kubectl logs job/tasktracker-smoke-test -n dso202-dev
 argocd app get tasktracker-dev
 # dev frontend: http://localhost:30080 (do a create / read / update / delete cycle)
+```
+![alt text](<evidences/Screenshot from 2026-11-20 20-40-16.png>)
 
+![alt text](evidences/dev-frontend-crud-01-create.png)
+
+![alt text](evidences/dev-frontend-crud-02-read.png)
+
+![alt text](evidences/dev-frontend-crud-03-update.png)
+
+![alt text](evidences/dev-frontend-crud-04-delete.png)
+
+```bash
 # staging
 argocd app get root                       # state BEFORE the first staging sync
 argocd app get tasktracker-staging
@@ -460,13 +490,9 @@ kubectl get svc -n dso202-staging
 kubectl port-forward -n dso202-staging svc/frontend-svc 8081:8080     # http://localhost:8081
 argocd app get root                       # state AFTER
 ```
-Screenshot: tasktracker-dev resource tree → `05-tasktracker-dev-tree.png`. Q3 is answered in section 9; paste the Synced/Degraded output from Task 7 into evidence 5.7.
+![alt text](<evidences/Screenshot from 2026-11-20 20-49-11.png>)
 
-![tasktracker-dev resource tree (required) and the dev page at localhost:30080](docs/screenshots/05-tasktracker-dev-tree.png)
-
-> 📸 **Screenshot:** save as `docs/screenshots/05-tasktracker-dev-tree.png` — tasktracker-dev resource tree (required) and the dev page at localhost:30080.
-
-### Task 6 — Argo CD access control
+### Task 6 - Argo CD access control
 
 ```bash
 argocd account list
@@ -478,7 +504,14 @@ argocd --argocd-context reviewer account can-i sync applications 'dso202/tasktra
 argocd --argocd-context reviewer account can-i get logs 'dso202/tasktracker-dev'
 argocd --argocd-context reviewer proj get platform
 # open https://localhost:8080 in a private window as reviewer: Sync refused, logs hidden
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-06-49.png>)
 
+![alt text](<evidences/Screenshot from 2026-11-20 21-05-00.png>)
+
+![alt text](<evidences/Screenshot from 2026-11-20 21-04-40.png>)
+
+```bash
 # enable the logs rule by a commit (PR as in Task 7, or directly on main for this one)
 git checkout -b feature/reviewer-logs
 sed -i 's/^    # p, reviewer, logs, get/    p, reviewer, logs, get/' bootstrap/argocd/argocd-rbac-cm-patch.yaml
@@ -647,14 +680,5 @@ Create one task in each environment to show the database works. Record the total
 
 Replace the `source:` block of `argocd/applications/tasktracker-dev.yaml` with the `sources:` block shown in `docs/evidence.md`, Task 10; commit, push, and record `argocd app get tasktracker-dev`.
 
-### Final checklist before submitting
 
-- [ ] `git log --oneline` shows many commits; `.gitignore` is the first
-- [ ] Tags `v1.0.0`, `v1.1.0`, `v1.2.0` are on GitHub (`git ls-remote --tags origin`)
-- [ ] `git status --short --ignored` shows `secrets-plain/` ignored and no key material tracked
-- [ ] `docs/evidence.md` has real output in every block, four screenshots in `docs/screenshots/`
-- [ ] Repository is public; submit the URL and `git rev-parse origin/main`
-- [ ] no YAML line outside a comment uses latest, stable, master or HEAD as a version
 
-Command output for every task: [`docs/evidence.md`](docs/evidence.md); screenshots: `docs/screenshots/`.
-# AS2025_DSO202_02230289_Assignment-04
