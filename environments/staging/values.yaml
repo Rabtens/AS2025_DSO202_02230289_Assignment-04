@@ -22,6 +22,6 @@ backend:
 frontend:
   replicaCount: 1
   image:
-    tag: "1.0"
+    tag: "1.1"
   service:
     nodePort: 30081
