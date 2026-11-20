@@ -519,24 +519,26 @@ git diff
 git commit -am "Grant reviewer read access to logs of the dso202 project"
 git push -u origin feature/reviewer-logs
 gh pr create --fill --base main && gh pr merge --squash --delete-branch && git checkout main && git pull
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-10-17.png>)
 
+```bash
 # this ConfigMap is part of the hand-applied bootstrap layer, so apply it again by hand
 kubectl apply -k bootstrap/argocd --server-side --force-conflicts
 argocd --argocd-context reviewer account can-i get logs 'dso202/tasktracker-dev'   # yes
 # if still "no" after a minute: kubectl rollout restart deployment argocd-server -n argocd
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-13-45.png>)
 
+```bash
 # back to the admin session
 argocd login localhost:8080 --username admin --insecure
 ```
-Screenshot: reviewer session showing Pod logs → `06-reviewer-logs.png`. If you use another CLI for pull requests, the web UI works equally well. Q4 is answered in section 9.
+![alt text](<evidences/Screenshot from 2026-11-20 21-18-50.png>)
 
-![reviewer session showing Pod logs (required)](docs/screenshots/06-reviewer-logs.png)
+### Task 7 - Release, faulty release, recovery (every change through a pull request)
 
-> 📸 **Screenshot:** save as `docs/screenshots/06-reviewer-logs.png` — reviewer session showing Pod logs (required).
-
-### Task 7 — Release, faulty release, recovery (every change through a pull request)
-
-Helper (paste once per terminal): sets the image tag of one tier in both values files.
+Helper : sets the image tag of one tier in both values files.
 
 ```bash
 retag() { tier=$1; tag=$2; for e in dev staging; do
@@ -545,7 +547,7 @@ retag() { tier=$1; tag=$2; for e in dev staging; do
 pr() { git commit -am "$1" && git push -u origin "$2" && gh pr create --fill --base main && gh pr merge --squash --delete-branch && git checkout main && git pull; }
 ```
 
-**Part A — frontend 1.1 with promotion**
+**Part A - frontend 1.1 with promotion**
 
 ```bash
 git checkout -b release/frontend-1.1
