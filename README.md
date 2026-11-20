@@ -557,7 +557,10 @@ kubectl get pods -n dso202-dev -w
 argocd app get tasktracker-dev --refresh
 argocd app history tasktracker-dev
 # staging has NOT changed: it reads tag v1.0.0
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-25-05.png>)
 
+```bash
 git tag -a v1.1.0 -m "Release: frontend 1.1" && git push origin v1.1.0
 git checkout -b promote/staging-v1.1.0
 sed -i 's/targetRevision: v1.0.0/targetRevision: v1.1.0/' argocd/applications/tasktracker-staging.yaml
@@ -566,6 +569,7 @@ argocd app get root --refresh
 argocd app get tasktracker-staging          # OutOfSync, nothing deployed; :8081 still shows the old header
 argocd app sync tasktracker-staging
 ```
+![alt text](<evidences/Screenshot from 2026-11-20 21-26-45.png>)
 
 **Part B - backend 1.1 fails, recovery by git revert, fix forward**
 
