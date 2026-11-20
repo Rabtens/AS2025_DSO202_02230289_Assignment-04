@@ -509,7 +509,7 @@ For each drill: prediction, commands, observation, and one sentence on whether t
 
 ### Drill 1 — drift in dev is reverted
 
-**Prediction:** Argo CD will scale the Deployment back to its Git value (1 replica) within seconds, because `selfHeal: true` is set on `tasktracker-dev`.
+**Prediction:** If I scale the dev backend to three replicas with kubectl, I expect Argo CD to bring it back to the one replica defined in Git. Dev has automated sync with self-healing enabled, so it should correct the live change without a new commit.
 
 **Commands and observation**
 
@@ -527,7 +527,7 @@ kubectl get deployment/backend -n dso202-dev -w      # start the watch BEFORE th
 
 ### Drill 2 — drift in staging is reported, not reverted
 
-**Prediction:** The Deployment will stay at 3 replicas; `tasktracker-staging` will show OutOfSync, because it has no automated sync, until I sync it manually.
+**Prediction:** If I scale the staging backend to three replicas, I expect Argo CD to flag it as `OutOfSync` and leave all three replicas in place. When I sync staging manually, I expect the deployment to return to one replica.
 
 **Commands and observation**
 
@@ -546,7 +546,7 @@ argocd app sync tasktracker-staging
 
 ### Drill 3 — removing a file prunes the object
 
-**Prediction:** The ConfigMap `prune-drill` will appear within about a minute of the push and disappear within about a minute of `git rm`, because `prune: true` is set on `platform-dev`. Deleting `namespace.yaml` would not delete the namespace because of `Prune=false` (explained, not tested).
+**Prediction:** I expect `platform-dev` to create the `prune-drill` ConfigMap after I push its manifest. Once I push a commit removing the manifest, automated pruning should delete the ConfigMap during reconciliation. I expect the namespace to be protected by its `Prune=false` annotation, which I will leave in place.
 
 **Commands and observation**
 
@@ -565,7 +565,7 @@ kubectl get configmap prune-drill -n dso202-dev
 
 ### Drill 4 — the project rejects a resource it does not permit
 
-**Prediction:** The sync of `tasktracker-dev` will be refused with a message that the ResourceQuota is not permitted in project `dso202`. Staging is unaffected because it reads the tag `v1.2.0` (or the latest promoted tag), which does not contain the new file.
+**Prediction:** If I put a ResourceQuota in the workload chart on `main`, I expect the dev sync to fail because the `dso202` project does not allow that kind. Staging should be unaffected because its pinned release tag does not include the test manifest.
 
 **Commands and observation**
 
@@ -701,15 +701,46 @@ The changed Application file is `argocd/applications/tasktracker-dev.yaml`; `sou
       ref: values
 ```
 
-**10.1 Two sources, Synced and Healthy**
+**10.1 Live verification of both sources**
 
 ```bash
-argocd app get tasktracker-dev
+argocd app get tasktracker-dev --core --refresh
 ```
 
 ```text
-(paste the output here)
+Name:               argocd/tasktracker-dev
+Project:            dso202
+Server:             https://kubernetes.default.svc
+Namespace:          dso202-dev
+URL:                http://localhost:44565/applications/tasktracker-dev
+Sources:
+- Repo:             https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git
+  Target:           main
+  Path:             charts/tasktracker
+  Helm Values:      $values/environments/dev/values.yaml
+- Repo:             https://github.com/Rabtens/AS2025_DSO202_02230289_Assignment-04.git
+  Target:           main
+  Ref:              values
+SyncWindow:         Sync Allowed
+Sync Policy:        Automated (Prune)
+Sync Status:        Synced to main
+Health Status:      Degraded
+
+GROUP  KIND            NAMESPACE   NAME                   STATUS  HEALTH    HOOK  MESSAGE
+       ServiceAccount  dso202-dev  db-sa                  Synced                  serviceaccount/db-sa unchanged
+       ServiceAccount  dso202-dev  backend-sa             Synced                  serviceaccount/backend-sa unchanged
+       ServiceAccount  dso202-dev  frontend-sa            Synced                  serviceaccount/frontend-sa unchanged
+       ConfigMap       dso202-dev  frontend-nginx-config  Synced                  configmap/frontend-nginx-config unchanged
+       ConfigMap       dso202-dev  task-tracker-config    Synced                  configmap/task-tracker-config unchanged
+       Service         dso202-dev  db-headless            Synced  Healthy         service/db-headless unchanged
+apps   StatefulSet     dso202-dev  db                     Synced  Healthy         partitioned roll out complete: 1 new pods have been updated...
+       Service         dso202-dev  backend-svc            Synced  Healthy         service/backend-svc unchanged
+apps   Deployment      dso202-dev  backend                Synced  Degraded        Deployment "backend" exceeded its progress deadline
+       Service         dso202-dev  frontend-svc           Synced  Healthy         
+apps   Deployment      dso202-dev  frontend               Synced  Degraded
 ```
+
+The CLI used a temporary Kubernetes context scoped to the `argocd` namespace for core mode. Argo CD resolved both sources and reported `Synced to main`. The backend and frontend deployments still reported `Degraded` because their `1.1` images could not be pulled. The database was healthy.
 
 **10.2 When separating the sources is useful**
 

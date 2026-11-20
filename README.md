@@ -632,33 +632,37 @@ argocd app history tasktracker-staging       # no revision with the faulty backe
 git log --oneline --graph --decorate -n 15
 gh pr list --state merged --limit 20
 ```
-Staging never ran the faulty backend because it reads tag `v1.1.0` (frontend only) until you promote `v1.2.0`. The tags v1.0.0, v1.1.0 and v1.2.0 must all be on GitHub at submission.
+![alt text](<evidences/Screenshot from 2026-11-20 21-33-47.png>)
 
-![tasktracker-dev Degraded, then Healthy after the revert](docs/screenshots/t7-degraded-and-recovered.png)
-
-> 📸 **Screenshot:** save as `docs/screenshots/t7-degraded-and-recovered.png` — tasktracker-dev Degraded, then Healthy after the revert.
-
-### Task 8 — Drills (write the prediction BEFORE running; predictions are pre-filled in evidence.md, edit them to your own words)
-
+### Task 8 - Drills 
 ```bash
 # Drill 1 — start the watch first
 kubectl get deployment -n dso202-dev
 kubectl scale deployment/backend -n dso202-dev --replicas=3
 kubectl get deployment/backend -n dso202-dev -w
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-35-44.png>)
 
+```bash
 # Drill 2
 kubectl scale deployment/backend -n dso202-staging --replicas=3
 argocd app get tasktracker-staging
 argocd app diff tasktracker-staging
 argocd app sync tasktracker-staging
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-37-33.png>)
 
+```bash
 # Drill 3
 cp $PACK/extras/drill-files/prune-drill.yaml platform/dev/
 git add platform/dev/prune-drill.yaml && git commit -m "Drill 3: add prune-drill ConfigMap" && git push
 kubectl get configmap prune-drill -n dso202-dev
 git rm platform/dev/prune-drill.yaml && git commit -m "Drill 3: remove prune-drill ConfigMap" && git push
 kubectl get configmap prune-drill -n dso202-dev
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-41-09.png>)
 
+```bash
 # Drill 4
 cp $PACK/extras/drill-files/drill-quota.yaml charts/tasktracker/templates/
 git add charts && git commit -m "Drill 4: add a ResourceQuota to the chart" && git push
@@ -666,13 +670,9 @@ argocd app get tasktracker-dev
 kubectl get applications -n argocd
 git revert --no-edit HEAD && git push        # restore dev
 ```
-(Drills 3 and 4 push straight to `main`: the "every change through a pull request" rule is stated for Task 7 only.)
+![alt text](<evidences/Screenshot from 2026-11-20 21-41-29.png>)
 
-![the sync refusal for the ResourceQuota (Drill 4)](docs/screenshots/t8-project-rejection.png)
-
-> 📸 **Screenshot:** save as `docs/screenshots/t8-project-rejection.png` — the sync refusal for the ResourceQuota (Drill 4).
-
-### Task 9 — Rebuild from Git
+### Task 9 - Rebuild from Git
 
 ```bash
 bash $PACK/extras/scripts/backup-sealing-key.sh
@@ -691,15 +691,20 @@ curl -s http://localhost:30080 | head
 bash $PACK/extras/scripts/backup-sealing-key.sh      # fresh backup of the rebuilt cluster
 date
 ```
-Create one task in each environment to show the database works. Record the total time from `kind create cluster` to a working dev frontend. If the backup reports a `resourceVersion`/`uid` error on restore, delete `resourceVersion`, `uid` and `creationTimestamp` from each item in the backup file and apply again. Q6 is answered in section 9.
+![alt text](<evidences/Screenshot from 2026-11-20 21-43-40.png>)
 
-![both environments Healthy after the rebuild](docs/screenshots/t9-rebuilt.png)
+![alt text](<evidences/Screenshot from 2026-11-20 21-47-42.png>)
 
-> 📸 **Screenshot:** save as `docs/screenshots/t9-rebuilt.png` — both environments Healthy after the rebuild.
-
-### Task 10 — Bonus (optional)
+### Task 10 - Bonus Task
 
 Replace the `source:` block of `argocd/applications/tasktracker-dev.yaml` with the `sources:` block shown in `docs/evidence.md`, Task 10; commit, push, and record `argocd app get tasktracker-dev`.
 
+![Task 10 Argo CD CLI output showing both sources and the sync and health status](evidences/task-10-multi-source.png)
 
+### Conclusion
 
+I configured Argo CD to deploy Task Tracker to separate dev and staging namespaces. Dev follows `main` with automated sync, self-healing, and pruning. Staging uses a pinned release tag and a manual sync so changes can be reviewed before promotion. Database credentials are managed with Sealed Secrets, and the reviewer role can inspect Task Tracker and its logs within the `dso202` project.
+
+I verified the dev frontend by creating a task, reloading to confirm it was saved, updating its status, and deleting it. The release and recovery steps showed how to diagnose a failed rollout and recover through Git while keeping auto-sync enabled. The reconciliation drills covered how Argo CD handles drift, removes resources deleted from Git, and enforces project resource permissions. The rebuild procedure records how to bootstrap the cluster again and restore its sealing key.
+
+For Task 10, I split the dev Application into two sources. One points to the Helm chart and the other supplies the dev values through `$values/environments/dev/values.yaml`. Both sources currently track `main`. This demonstrates how a chart and its environment configuration can be managed separately. The live verification is recorded in [Task 10 of the evidence file](docs/evidence.md#task-10-bonus-optional).
