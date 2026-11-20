@@ -578,11 +578,18 @@ git checkout -b release/backend-1.1
 retag backend 1.1
 pr "Release backend 1.1 in dev and staging values" release/backend-1.1
 git log --oneline -n 3                      # note the SHA of this commit: the BAD commit
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-27-56.png>)
 
+```bash
 # observe and do NOT intervene
 kubectl get pods -n dso202-dev -w
 argocd app get tasktracker-dev
 kubectl get applications -n argocd
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-28-14.png>)
+
+```bash
 # diagnose
 kubectl get pods -n dso202-dev
 kubectl describe pod <new-backend-pod> -n dso202-dev
@@ -595,7 +602,10 @@ git revert --no-edit <bad-commit-sha>        # add -m 1 if the PR was merged wit
 git push -u origin revert/backend-1.1
 gh pr create --fill --base main && gh pr merge --squash --delete-branch && git checkout main && git pull
 argocd app get tasktracker-dev     # back to Healthy on the baseline backend
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-30-49.png>)
 
+```bash
 # fix forward: 1.1 again, plus what the log required, as a VALUE (chart contract C2)
 git checkout -b fix/backend-1.1-config
 retag backend 1.1
@@ -606,7 +616,12 @@ ${EDITOR:-nano} environments/staging/values.yaml
 #       <NAME_FROM_THE_LOG>: "<value>"
 pr "Release backend 1.1 with the setting it requires" fix/backend-1.1-config
 argocd app get tasktracker-dev     # Healthy, smoke test passes
+```
+![alt text](<evidences/Screenshot from 2026-11-20 21-31-51.png>)
 
+![alt text](<evidences/Screenshot from 2026-11-20 21-32-02.png>)
+
+```bash
 # promote the fixed release
 git tag -a v1.2.0 -m "Release: backend 1.1 with required setting" && git push origin v1.2.0
 git checkout -b promote/staging-v1.2.0
