@@ -567,7 +567,7 @@ argocd app get tasktracker-staging          # OutOfSync, nothing deployed; :8081
 argocd app sync tasktracker-staging
 ```
 
-**Part B — backend 1.1 fails, recovery by git revert, fix forward**
+**Part B - backend 1.1 fails, recovery by git revert, fix forward**
 
 ```bash
 git checkout -b release/backend-1.1
